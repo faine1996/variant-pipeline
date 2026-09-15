@@ -89,6 +89,11 @@ Each entry states the decision, the reasoning, and the alternative that was reje
 **Decision:** `SLEEP_SECONDS` environment variable, default 30, set to 0 in tests.
 **Reasoning:** The brief specifies 30 seconds and explicitly permits making it configurable so development and testing are faster. A test suite that takes minutes does not get run.
 
+D15 — Commit 3 covers all of common/, not just validation + atomic write
+Decision: Commit 3's scope is validation.py, atomic_io.py, log_setup.py, and config.py together; commit message becomes feat(common): add validation rules, atomic write helper, logging, and config.
+Reasoning: PLAN §12 milestone 2 groups "validation, atomic write, and logging" as one unit of work. config.py (the SLEEP_SECONDS env-var read) is a few lines and has no natural home of its own — splitting it into a later commit would mean touching common/ again for one function. Keeping all shared, dependency-free infrastructure in one commit is more coherent than a literal reading of the short commit-message list, which was clearly shorthand.
+Rejected: Literal reading (validation + atomic write only), deferring log_setup.py/config.py to commit 5 or 7 — creates an artificial split within common/ for no benefit.
+
 ---
 
 ## 2. Assumptions
@@ -104,7 +109,9 @@ Stated because the brief asks for assumptions to be named.
 - **A7 — `chrM` / non-standard contigs.** Not present in the samples. Any non-empty `CHROM` value is accepted and tallied under its own key rather than rejected.
 - **A8 — Output directory is writable** and mounted from the host, so results survive container exit.
 - **A9 — Timestamps in UTC**, ISO 8601 format, so summaries from different machines are comparable and sort correctly as text.
-
+A10 — Malformed SLEEP_SECONDS crashes at startup, not silently defaults.
+If SLEEP_SECONDS is set to something that isn't a valid number, the pipeline raises ValueError and exits immediately, rather than falling back to the default and continuing.
+Reasoning: PLAN's "never crash on a bad row" guarantee is scoped to per-row input data (CSV rows), not startup configuration. A bad SLEEP_SECONDS is an operator mistake, and failing fast and visibly at launch is more honest than silently running with an unintended sleep duration.
 ---
 
 ## 3. Open questions
