@@ -107,6 +107,11 @@ Decision: Add a new file, common/timestamps.py, containing one function, utc_now
 Reasoning: All three stages need an identical UTC ISO-8601 timestamp, and unlike most small helpers, we can see the third use (Aggregate's generated_at) coming before writing it, so this isn't premature abstraction — it's a genuine, already-confirmed duplication across three files. common/ is exactly where PLAN puts shared, dependency-free infrastructure used by more than one stage.
 Rejected: Keeping a private _utc_now_iso() copy in each stage file — three copies of the same three lines, and a future change to timestamp formatting would need three identical edits instead of one.
 
+D19 — Add dedicated commits for test_process.py and test_aggregate.py, inserted before the Docker milestone
+Decision: Insert two new commits between the current commit 8 and the original commit 9 (Docker): test(process): cover metrics stage and test(aggregate): cover chromosome tallies and ordering. The original numbered commit list becomes 13 commits total instead of 11; everything from the old "commit 9" onward shifts down by two in sequence (but keeps its own message unchanged).
+Reasoning: PLAN §8's test-file table explicitly requires test_process.py (six fields present, SLEEP_SECONDS honoured, counts carried through) and test_aggregate.py (tallies/totals, natural chromosome ordering, input_files_processed populated) as their own files with distinct coverage — the same status test_validation.py and test_convert.py already got dedicated commits for (commits 4 and 6). Folding them into commit 10 ("idempotency + sample-data regression") instead would mix unit-level tests of individual stages into a commit meant for broader end-to-end/regression tests, and would make that one commit unusually large compared to every other commit in the history — a reviewer skimming the git log would see an inconsistent pattern.
+Rejected: Leaving test_process.py/test_aggregate.py folded into commit 10 as originally implied — inconsistent with how common/ and convert/ were already treated, and produces one oversized, mixed-purpose commit.
+
 ## 2. Assumptions
 
 Stated because the brief asks for assumptions to be named.
