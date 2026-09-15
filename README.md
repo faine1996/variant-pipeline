@@ -8,9 +8,11 @@ Software Engineering Intern take-home assessment.
 
 ## 1. How to build and run
 
-**Requirements: Docker and Docker Compose v2. Nothing else.**
+**Requirements: Git, Docker, and Docker Compose v2. Nothing else.**
 
 ```bash
+git clone <this-repository-url>
+cd variant-pipeline
 make run
 ```
 
@@ -18,21 +20,30 @@ This builds one image and runs it three times — Convert, then Process, then
 Aggregate, in that order — writing results to `data/work/` and
 `data/output/summary.json` on your host machine.
 
+**No `make` available?** (common on a default Windows PowerShell/CMD prompt —
+`make` isn't installed there by default). Run the underlying command directly
+instead; it does exactly the same thing:
+
+```bash
+docker compose up --build
+```
+
 By default, Process sleeps 30 seconds per input file (see [Design decisions](#2-design-decisions-and-assumptions),
 D14). To run the demo faster, override it via the environment — no file edits
 needed:
 
 ```bash
 SLEEP_SECONDS=2 make run
+# or, without make:
+SLEEP_SECONDS=2 docker compose up --build
 ```
 
-**Other commands:**
+**Other commands, with their no-`make` equivalents:**
 
-```bash
-make test    # runs the test suite (requires Python 3.12 + pytest, dev-only —
-             # not needed to run the pipeline itself)
-make clean   # stops and removes containers, clears data/work/ and data/output/
-```
+| `make` target | What it does | Without `make` |
+|---|---|---|
+| `make test` | Runs the test suite (requires Python 3.12 + `pip install -r requirements-dev.txt`; dev-only, not needed to run the pipeline) | `pytest` |
+| `make clean` | Stops/removes containers, clears `data/work/` and `data/output/` | `docker compose down --remove-orphans` (then manually clear `data/work/` and `data/output/` if desired) |
 
 **Capturing full logs beyond the container's lifetime:** Docker discards a
 container's logs once it's removed (e.g. after `make clean`). To keep a
