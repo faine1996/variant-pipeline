@@ -1,0 +1,46 @@
+services:
+  convert:
+    build: .
+    image: variant-pipeline:latest
+    volumes:
+      - ./data:/data
+    command:
+      - pipeline.convert
+      - --input-dir
+      - /data/input
+      - --output-dir
+      - /data/work/convert
+
+  process:
+    build: .
+    image: variant-pipeline:latest
+    volumes:
+      - ./data:/data
+    environment:
+      - SLEEP_SECONDS=${SLEEP_SECONDS:-30}
+    command:
+      - pipeline.process
+      - --input-dir
+      - /data/work/convert
+      - --output-dir
+      - /data/work/process
+    depends_on:
+      convert:
+        condition: service_completed_successfully
+
+  aggregate:
+    build: .
+    image: variant-pipeline:latest
+    volumes:
+      - ./data:/data
+    command:
+      - pipeline.aggregate
+      - --convert-dir
+      - /data/work/convert
+      - --process-dir
+      - /data/work/process
+      - --output-path
+      - /data/output/summary.json
+    depends_on:
+      process:
+        condition: service_completed_successfully
