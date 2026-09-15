@@ -6,6 +6,7 @@ import csv
 import json
 import logging
 from datetime import datetime, timezone
+from pipeline.common.timestamps import utc_now_iso
 from pathlib import Path
 
 from pipeline.common.atomic_io import AtomicWriter, clear_directory
@@ -19,21 +20,6 @@ from pipeline.common.validation import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _utc_now_iso() -> str:
-    """Return the current UTC time as an ISO 8601 string.
-
-    Args:
-        None.
-
-    Returns:
-        A timestamp like "2026-09-14T12:00:00Z".
-
-    Raises:
-        Nothing.
-    """
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _validate_row(fields: list[str]) -> dict[str, object]:
@@ -86,7 +72,7 @@ def convert_file(csv_path: Path, output_dir: Path) -> None:
         with AtomicWriter(output_path) as out_handle:
             out_handle.write("{\n")
             out_handle.write(f'  "source_file": {json.dumps(csv_path.name)},\n')
-            out_handle.write(f'  "converted_at": {json.dumps(_utc_now_iso())},\n')
+            out_handle.write(f'  "converted_at": {json.dumps(utc_now_iso())},\n')
             out_handle.write('  "variants": [')
 
             first_variant = True

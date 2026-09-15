@@ -102,6 +102,10 @@ D17 — pyproject.toml with pytest path configuration is added in commit 4, not 
 Decision: pyproject.toml (containing only [tool.pytest.ini_options] pythonpath = ["src"]) is created and committed as part of commit 4, the first commit that includes a runnable test file, rather than as part of the original repo-skeleton commit.
 Reasoning: The file wasn't scoped to any of the 11 named commits ahead of time. It has no purpose until there's a test that needs to import from src/, so introducing it exactly when that need first arises (commit 4) keeps each commit's contents justified by what it's actually for, rather than adding empty-seeming config speculatively in commit 1.
 ---
+D18 — Extract utc_now_iso() into common/timestamps.py, refactoring converter.py to use it
+Decision: Add a new file, common/timestamps.py, containing one function, utc_now_iso(). converter.py (already committed in commit 5) is edited to import this instead of keeping its own private _utc_now_iso(). processor.py and, later, aggregator.py use the same shared function.
+Reasoning: All three stages need an identical UTC ISO-8601 timestamp, and unlike most small helpers, we can see the third use (Aggregate's generated_at) coming before writing it, so this isn't premature abstraction — it's a genuine, already-confirmed duplication across three files. common/ is exactly where PLAN puts shared, dependency-free infrastructure used by more than one stage.
+Rejected: Keeping a private _utc_now_iso() copy in each stage file — three copies of the same three lines, and a future change to timestamp formatting would need three identical edits instead of one.
 
 ## 2. Assumptions
 
