@@ -1,0 +1,9 @@
+index,CHROM,POS,REF,ALT
+,chr1,1000,A,T
+chr2:2000_A/T,chr2,not_a_number,A,T
+chr3:3000_A/T,chr3,3000,A,
+chr4:4000_A/T,chr4,4000,N,T
+chr5:5000_A/T,chr5,5000,A,T,extra_field
+,chr6,-5,A,T
+chr7:7000_A/T,chr7,7000,A,1
+chr8:8000_A/T,,8000,A,T
