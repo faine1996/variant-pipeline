@@ -89,28 +89,34 @@ Each entry states the decision, the reasoning, and the alternative that was reje
 **Decision:** `SLEEP_SECONDS` environment variable, default 30, set to 0 in tests.
 **Reasoning:** The brief specifies 30 seconds and explicitly permits making it configurable so development and testing are faster. A test suite that takes minutes does not get run.
 
-D15 — Commit 3 covers all of common/, not just validation + atomic write
-Decision: Commit 3's scope is validation.py, atomic_io.py, log_setup.py, and config.py together; commit message becomes feat(common): add validation rules, atomic write helper, logging, and config.
-Reasoning: PLAN §12 milestone 2 groups "validation, atomic write, and logging" as one unit of work. config.py (the SLEEP_SECONDS env-var read) is a few lines and has no natural home of its own — splitting it into a later commit would mean touching common/ again for one function. Keeping all shared, dependency-free infrastructure in one commit is more coherent than a literal reading of the short commit-message list, which was clearly shorthand.
-Rejected: Literal reading (validation + atomic write only), deferring log_setup.py/config.py to commit 5 or 7 — creates an artificial split within common/ for no benefit.
-D16 — variants_messy.csv kept mostly as-is; verification target corrected to match its real content, rather than trimming the file to exactly 6 valid/5 skipped
-Decision: Add one row to exercise rule 3 (empty CHROM), the only one of the six rules the original file never tested. Otherwise leave the file untouched. The correct, current composition is 4 valid / 8 skipped / 12 total, with rules 2, 4, and 6 each covered by two different rows — not the originally stated 6 valid / 5 skipped, one-row-per-rule target.
-Reasoning: Inspection during implementation (see `PLAN.md` §3) found the file as originally approved didn't actually match its own stated result line — it was 4 valid / 7 skipped with rule 3 never exercised, not 6 valid / 5 skipped. Trimming rows to force an exact 6/5 split risks introducing a fresh fixture bug for no functional benefit — the redundant coverage of rules 2, 4, and 6 isn't harmful, it just means those rules each have more than one worked example, which is a stronger test than the plan called for, not a weaker one. Matching the documented target to the file's real, verified content is the safer fix.
-Rejected: Removing the redundant rows (one of the two ALT-defect rows, and the two individual index/POS rows already covered by the double-defect row) to hit exactly 6/5 — more surgery to an already-working fixture file, for a cosmetic round number.
+### D15 — Commit 3 covers all of `common/`, not just validation + atomic write
 
-D17 — pyproject.toml with pytest path configuration is added in commit 4, not commit 1
-Decision: pyproject.toml (containing only [tool.pytest.ini_options] pythonpath = ["src"]) is created and committed as part of commit 4, the first commit that includes a runnable test file, rather than as part of the original repo-skeleton commit.
-Reasoning: The file wasn't scoped to any of the 11 named commits ahead of time. It has no purpose until there's a test that needs to import from src/, so introducing it exactly when that need first arises (commit 4) keeps each commit's contents justified by what it's actually for, rather than adding empty-seeming config speculatively in commit 1.
----
-D18 — Extract utc_now_iso() into common/timestamps.py, refactoring converter.py to use it
-Decision: Add a new file, common/timestamps.py, containing one function, utc_now_iso(). converter.py (already committed in commit 5) is edited to import this instead of keeping its own private _utc_now_iso(). processor.py and, later, aggregator.py use the same shared function.
-Reasoning: All three stages need an identical UTC ISO-8601 timestamp, and unlike most small helpers, we can see the third use (Aggregate's generated_at) coming before writing it, so this isn't premature abstraction — it's a genuine, already-confirmed duplication across three files. common/ is exactly where PLAN puts shared, dependency-free infrastructure used by more than one stage.
-Rejected: Keeping a private _utc_now_iso() copy in each stage file — three copies of the same three lines, and a future change to timestamp formatting would need three identical edits instead of one.
+**Decision:** Commit 3's scope is `validation.py`, `atomic_io.py`, `log_setup.py`, and `config.py` together; commit message becomes `feat(common): add validation rules, atomic write helper, logging, and config`.
+**Reasoning:** PLAN §12 milestone 2 groups "validation, atomic write, and logging" as one unit of work. `config.py` (the `SLEEP_SECONDS` env-var read) is a few lines and has no natural home of its own — splitting it into a later commit would mean touching `common/` again for one function. Keeping all shared, dependency-free infrastructure in one commit is more coherent than a literal reading of the short commit-message list, which was clearly shorthand.
+**Rejected:** Literal reading (validation + atomic write only), deferring `log_setup.py`/`config.py` to commit 5 or 7 — creates an artificial split within `common/` for no benefit.
 
-D19 — Add dedicated commits for test_process.py and test_aggregate.py, inserted before the Docker milestone
-Decision: Insert two new commits between the current commit 8 and the original commit 9 (Docker): test(process): cover metrics stage and test(aggregate): cover chromosome tallies and ordering. The original numbered commit list becomes 13 commits total instead of 11; everything from the old "commit 9" onward shifts down by two in sequence (but keeps its own message unchanged).
-Reasoning: PLAN §8's test-file table explicitly requires test_process.py (six fields present, SLEEP_SECONDS honoured, counts carried through) and test_aggregate.py (tallies/totals, natural chromosome ordering, input_files_processed populated) as their own files with distinct coverage — the same status test_validation.py and test_convert.py already got dedicated commits for (commits 4 and 6). Folding them into commit 10 ("idempotency + sample-data regression") instead would mix unit-level tests of individual stages into a commit meant for broader end-to-end/regression tests, and would make that one commit unusually large compared to every other commit in the history — a reviewer skimming the git log would see an inconsistent pattern.
-Rejected: Leaving test_process.py/test_aggregate.py folded into commit 10 as originally implied — inconsistent with how common/ and convert/ were already treated, and produces one oversized, mixed-purpose commit.
+### D16 — `variants_messy.csv` kept mostly as-is; verification target corrected to match its real content, rather than trimming the file to exactly 6 valid/5 skipped
+
+**Decision:** Add one row to exercise rule 3 (empty `CHROM`), the only one of the six rules the original file never tested. Otherwise leave the file untouched. The correct, current composition is 4 valid / 8 skipped / 12 total, with rules 2, 4, and 6 each covered by two different rows — not the originally stated 6 valid / 5 skipped, one-row-per-rule target.
+**Reasoning:** Inspection during implementation (see `PLAN.md` §3) found the file as originally approved didn't actually match its own stated result line — it was 4 valid / 7 skipped with rule 3 never exercised, not 6 valid / 5 skipped. Trimming rows to force an exact 6/5 split risks introducing a fresh fixture bug for no functional benefit — the redundant coverage of rules 2, 4, and 6 isn't harmful, it just means those rules each have more than one worked example, which is a stronger test than the plan called for, not a weaker one. Matching the documented target to the file's real, verified content is the safer fix.
+**Rejected:** Removing the redundant rows (one of the two ALT-defect rows, and the two individual index/POS rows already covered by the double-defect row) to hit exactly 6/5 — more surgery to an already-working fixture file, for a cosmetic round number.
+
+### D17 — `pyproject.toml` with pytest path configuration is added in commit 4, not commit 1
+
+**Decision:** `pyproject.toml` (containing `[tool.pytest.ini_options] pythonpath = ["src", "."]`) is created and committed as part of commit 4, the first commit that includes a runnable test file, rather than as part of the original repo-skeleton commit.
+**Reasoning:** The file wasn't scoped to any of the 11 named commits ahead of time. It has no purpose until there's a test that needs to import from `src/` and `tests/`, so introducing it exactly when that need first arises (commit 4) keeps each commit's contents justified by what it's actually for, rather than adding empty-seeming config speculatively in commit 1.
+
+### D18 — Extract `utc_now_iso()` into `common/timestamps.py`, refactoring `converter.py` to use it
+
+**Decision:** Add a new file, `common/timestamps.py`, containing one function, `utc_now_iso()`. `converter.py` (already committed in commit 5) is edited to import this instead of keeping its own private `_utc_now_iso()`. `processor.py` and, later, `aggregator.py` use the same shared function.
+**Reasoning:** All three stages need an identical UTC ISO-8601 timestamp, and unlike most small helpers, we can see the third use (Aggregate's `generated_at`) coming before writing it, so this isn't premature abstraction — it's a genuine, already-confirmed duplication across three files. `common/` is exactly where PLAN puts shared, dependency-free infrastructure used by more than one stage.
+**Rejected:** Keeping a private `_utc_now_iso()` copy in each stage file — three copies of the same three lines, and a future change to timestamp formatting would need three identical edits instead of one.
+
+### D19 — Add dedicated commits for `test_process.py` and `test_aggregate.py`, inserted before the Docker milestone
+
+**Decision:** Insert two new commits between the current commit 8 and the original commit 9 (Docker): `test(process): cover metrics stage` and `test(aggregate): cover chromosome tallies and ordering`. The original numbered commit list becomes 13 commits total instead of 11; everything from the old "commit 9" onward shifts down by two in sequence, keeping its own message unchanged.
+**Reasoning:** PLAN §8's test-file table explicitly requires `test_process.py` (six fields present, `SLEEP_SECONDS` honoured, counts carried through) and `test_aggregate.py` (tallies/totals, natural chromosome ordering, `input_files_processed` populated) as their own files with distinct coverage — the same status `test_validation.py` and `test_convert.py` already got dedicated commits for (commits 4 and 6). Folding them into commit 10 instead would mix unit-level tests into a commit meant for broader end-to-end regression, producing one oversized, mixed-purpose commit.
+**Rejected:** Leaving `test_process.py`/`test_aggregate.py` folded into commit 10 as originally implied.
 
 ## 2. Assumptions
 
@@ -125,9 +131,7 @@ Stated because the brief asks for assumptions to be named.
 - **A7 — `chrM` / non-standard contigs.** Not present in the samples. Any non-empty `CHROM` value is accepted and tallied under its own key rather than rejected.
 - **A8 — Output directory is writable** and mounted from the host, so results survive container exit.
 - **A9 — Timestamps in UTC**, ISO 8601 format, so summaries from different machines are comparable and sort correctly as text.
-A10 — Malformed SLEEP_SECONDS crashes at startup, not silently defaults.
-If SLEEP_SECONDS is set to something that isn't a valid number, the pipeline raises ValueError and exits immediately, rather than falling back to the default and continuing.
-Reasoning: PLAN's "never crash on a bad row" guarantee is scoped to per-row input data (CSV rows), not startup configuration. A bad SLEEP_SECONDS is an operator mistake, and failing fast and visibly at launch is more honest than silently running with an unintended sleep duration.
+- **A10 — Malformed `SLEEP_SECONDS` crashes at startup, not silently defaults.** If `SLEEP_SECONDS` is set to something that isn't a valid number, the pipeline raises `ValueError` and exits immediately, rather than falling back to the default and continuing. PLAN's "never crash on a bad row" guarantee is scoped to per-row input data, not startup configuration — a bad `SLEEP_SECONDS` is an operator mistake, and failing fast and visibly at launch is more honest than silently running with an unintended sleep duration.
 ---
 
 ## 3. Open questions
@@ -183,3 +187,44 @@ required "example where you had to correct or override the AI's output".
 | 16 | No container practices specified | The rubric names slim images, layer caching, and non-root users by title |
 
 **Pattern worth stating in the README:** items 1–12 came from checking AI output against the source brief; items 13–16 came from opening the data files. The draft was fluent and internally plausible throughout — including where it was wrong. Fluency was not a signal of correctness in either direction.
+
+---
+
+## 5. Known issues and untested edge cases
+
+Found during implementation, deliberately **not** fixed within the time budget. Documented
+here rather than left silent, since knowing a limitation exists is the difference between a
+considered trade-off and an oversight.
+
+### K1 — File-level failure modes are not handled
+
+Validation is row-level only (`PLAN.md` §5.1). Three file-level cases behave badly, verified
+by direct testing:
+
+| Input | Behaviour | Why it happens |
+|---|---|---|
+| Empty CSV (0 bytes) | **Crashes the Convert stage** with `StopIteration` | `next(reader)` (the header skip) has nothing to read and raises, uncaught |
+| CSV with no header row | First data row silently discarded | `next(reader)` unconditionally throws away row 1, header or not |
+| CSV with reordered columns | Silently wrong output — `index`/`CHROM` values swap places | Fields are read positionally; both rules are only "non-empty" checks, so a swap still validates |
+
+The empty-file crash is the most serious, since one bad file stops the whole batch — exactly
+the failure mode the per-row error handling was built to avoid. The fix is small (catch
+`StopIteration` around the header read, log a warning, skip the file), and is the first thing
+to do with more time. The other two are consequences of A4 (every input has the documented
+header) and would need a header-validation step to address properly.
+
+### K2 — `variants_messy.csv` produces 7 skips on Windows, 8 on Linux
+
+Running the same commit on Windows (Python 3.12.10) yields `4 valid / 7 skipped` for
+`variants_messy.csv`, where Linux yields `4 valid / 8 skipped`. The missing warning is the
+`CHROM is empty` row (`chr9:34521098_A/T,,34521098,A,T`), which appears not to be read as a
+row at all on Windows. `variants_clean.csv` and all five numbered CSVs produce identical,
+correct results on both platforms, so this is specific to this one file rather than a general
+line-ending problem.
+
+Most likely cause is Git's line-ending normalisation on checkout (`core.autocrlf`, which
+defaults to `true` on Windows) rewriting this file's bytes, since the repository has no
+`.gitattributes` pinning the line endings of `data/input/*.csv`. Given the pipeline's
+correctness depends on exact CRLF handling, those files should be marked `-text` in a
+`.gitattributes` so Git never rewrites them on any platform. Not diagnosed to root cause
+before the submission deadline; recorded here rather than guessed at.

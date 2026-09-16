@@ -62,7 +62,9 @@ def test_metrics_file_has_all_six_fields(tmp_path: Path) -> None:
 def test_sleep_seconds_is_honoured(tmp_path: Path) -> None:
     """duration_seconds reflects the actual sleep_seconds passed in."""
     metrics = _convert_then_process("valid_minimal.csv", tmp_path, sleep_seconds=0.3)
-    assert metrics["duration_seconds"] >= 0.3
+    # 10ms tolerance: time.sleep() precision varies by platform, and Windows'
+    # coarser timer granularity can return a fraction early.
+    assert metrics["duration_seconds"] >= 0.3 - 0.01
 
 
 def test_zero_sleep_seconds_is_fast(tmp_path: Path) -> None:
