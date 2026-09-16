@@ -81,7 +81,10 @@ assumptions). The highlights most relevant to how this pipeline behaves:
 
 Full rationale for all of the above, plus assumptions like "no cross-file
 deduplication" and "batch, not daemon," is in `DECISIONS.md`.
-
+- **Container best practices (Dockerfile):** single `python:3.12-slim` image,
+  layer ordering that keeps dependency installs cached when only source changes,
+  and a dedicated non-root `appuser` — so the container never runs as root even
+  if an input file triggers unexpected behaviour.
 ---
 
 ## 3. AI workflow
@@ -91,55 +94,56 @@ deduplication" and "batch, not daemon," is in `DECISIONS.md`.
 | Tool | Used for |
 |---|---|
 | Gemini Pro Extended | First draft of the design/planning document |
-| Claude Opus 5 (web) | Reviewing that draft against the brief and the actual sample data; producing the corrected, approved plan (`PLAN.md`) |
+| Claude Opus 5 (web) | Reviewing that draft against the brief and actual sample data; producing the corrected, approved plan (`PLAN.md`) |
 | Claude Code | Implementation: every source file, test, and Docker artefact, built one file at a time with my review and sign-off at each step |
 
-**A concrete example of correcting AI output:** `PLAN.md`'s own description of
-the `variants_messy.csv` fixture stated a result of "6 valid, 5 skipped,"
-with each skip attributable to a different one of the six validation rules.
-While implementing the test suite, I ran the actual file through the real
-Convert stage and got 4 valid, 7 skipped instead — the plan's own numbers
-didn't match its own fixture, and rule 3 (empty `CHROM`) was never exercised
-by any row at all. This wasn't caught by reviewing the plan as prose; it only
-surfaced by running real code against the real file and checking the
-arithmetic. Logged as D16 in `DECISIONS.md`, with the fix (one added row) and
-the corrected target.
+**A concrete example of correcting AI output:** `PLAN.md` stated the
+`variants_messy.csv` fixture would produce "6 valid, 5 skipped," with each
+skip exercising a different validation rule. Running the real Convert stage
+against the real file gave 4 valid, 7 skipped — the plan's own numbers didn't
+match its own fixture, and rule 3 (empty `CHROM`) was never exercised by any
+row. This only surfaced by running code against the actual data and checking
+the arithmetic, not by reviewing prose. Logged as D16 in `DECISIONS.md`.
 
-**What AI is best at, for this kind of work:** generating well-specified,
-mechanical code once a rule is precisely stated (the six validation
-functions, CLI argument wiring, JSON serialisation), and explaining unfamiliar
-language mechanisms clearly on request. It's also useful as a second pass —
-Claude Opus 5's review of the first draft caught 12 of the 16 logged issues
-just from comparing it against the brief.
+**What AI is best at:** generating well-specified, mechanical code once a rule
+is precisely stated (the six validation functions, CLI argument wiring, JSON
+serialisation), and explaining unfamiliar language mechanisms clearly on
+request. Also useful as a second pass — Claude Opus 5's review caught 12 of
+the 16 logged issues just from comparing the draft against the brief.
 
 **What AI is worst at:** verifying its own claims against ground truth without
 being explicitly told to check. The first draft asserted things that sounded
 authoritative and were simply wrong (e.g. that Python's `int()` behaves like
 C's `strtol()` — it doesn't; `strtol("12abc")` silently returns `12`, while
-Python's `int()` raises on the whole string). The remaining 4 of the 16 issues
-— including the CRLF line endings and the multi-base alleles — were only
-found by opening the actual data files, not by reasoning about the brief.
-Fluent, confident-sounding text was not a reliable signal of correctness in
-either direction, in either drafting pass.
-
+Python's `int()` raises on the whole string). The remaining 4 of the 16
+issues — including CRLF line endings and multi-base alleles — were only found
+by opening the actual data files. Fluent, confident-sounding text was not a
+reliable signal of correctness in either drafting pass.
 ---
 
-## 4. What I would improve with more time
+## 4. Part 3 — Convert stage code review
 
-- **Stage 2 loads each converted file whole**, rather than streaming it the
-  way Stage 1 does. Fine at 161 rows; would need to switch to streaming or
-  JSON Lines before this could handle a realistically large batch.
-- **Warnings are unstructured text on `stderr`.** Structured JSON log lines
-  would make them queryable by a log aggregator instead of only grep-able.
-- **No per-file parallelism.** All three stages process their inputs strictly
-  one file at a time; concurrency would be the first thing to add for a much
-  larger batch.
-- **Validation rules are hard-coded functions**, not a declarative schema.
-  Fine for five fixed columns; wouldn't scale cleanly to more.
-- **Tests cover row-level and stage-level logic well, but not file-level
-  failure modes** — an unreadable file, or one with an unexpected header
-  (A4 assumes the header is always correct) — which would matter more against
-  real-world, untrusted input.
+If the Convert stage were handling millions of rows daily in production, these
+are the changes I would prioritise:
+
+- **Memory:** Convert already streams input row-by-row, so peak memory stays
+  low regardless of file size. Stage 2, however, loads each converted JSON
+  file whole — that would be the first bottleneck to fix (streaming or JSON
+  Lines).
+- **Performance:** validation is six independent function calls per row. At
+  millions of rows the call overhead adds up; a single-pass validator that
+  short-circuits on the first failure would reduce work per invalid row.
+  Per-file parallelism across input files would also help throughput.
+- **Logging:** warnings are currently unstructured text on `stderr`. Structured
+  JSON log lines (with file name, row number, rule violated) would make them
+  queryable by a log aggregator instead of only grep-able.
+- **Testing:** tests cover row-level and stage-level logic well, but not
+  file-level failure modes — an unreadable file, a file with an unexpected
+  header, or a zero-byte file — which matter more against real-world,
+  untrusted input.
+- **Validation rules** are hard-coded functions, not a declarative schema.
+  Fine for five fixed columns; wouldn't scale cleanly to more without
+  becoming difficult to audit.
 
 ---
 
